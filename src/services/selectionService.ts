@@ -1,0 +1,105 @@
+import { memberRepository } from '@/repositories/memberRepository';
+import { selectionRepository } from '@/repositories/selectionRepository';
+import { validateMatricula, validateAreaSelection, validateArticleSelection } from '@/utils/validators';
+import { AREAS, ARTICLES_BY_AREA } from '@/utils/constants';
+
+export interface SelectionData {
+  matricula: string;
+  mainAreaId: number;
+  areaPreferenceOrder: number[];
+  articlesSelected: { [key: number]: string };
+  customPdfPath?: string;
+  customPdfName?: string;
+}
+
+export class SelectionService {
+  validateMatricula(matricula: string): { valid: boolean; error?: string } {
+    if (!validateMatricula(matricula)) {
+      return { valid: false, error: 'Matrícula deve conter 12 dígitos' };
+    }
+    return { valid: true };
+  }
+
+  checkMatriculaExists(matricula: string): boolean {
+    const member = memberRepository.findByMatricula(matricula);
+    return member !== undefined;
+  }
+
+  validateSelection(data: Partial<SelectionData>): { valid: boolean; error?: string } {
+    // Validate matrícula
+    if (!data.matricula) {
+      return { valid: false, error: 'Matrícula é obrigatória' };
+    }
+
+    const matriculaValid = this.validateMatricula(data.matricula);
+    if (!matriculaValid.valid) {
+      return matriculaValid;
+    }
+
+    // Validate area selection
+    const areaIds = AREAS.map((a) => a.id);
+    const areaValid = validateAreaSelection(data.mainAreaId || 0, data.areaPreferenceOrder || [], areaIds);
+    if (!areaValid.valid) {
+      return areaValid;
+    }
+
+    // Validate articles
+    const articleValid = validateArticleSelection(data.articlesSelected || {}, ARTICLES_BY_AREA);
+    if (!articleValid.valid) {
+      return articleValid;
+    }
+
+    return { valid: true };
+  }
+
+  submitSelection(data: SelectionData): { success: boolean; memberId?: number; error?: string } {
+    // Validate
+    const validation = this.validateSelection(data);
+    if (!validation.valid) {
+      return { success: false, error: validation.error };
+    }
+
+    // Check if matricula already exists
+    let member = memberRepository.findByMatricula(data.matricula);
+    if (member && selectionRepository.findByMemberId(member.id)) {
+      return { success: false, error: 'Esta matrícula já realizou a seleção' };
+    }
+
+    // Create or get member
+    if (!member) {
+      member = memberRepository.create(data.matricula);
+    }
+
+    // Create selection
+    try {
+      selectionRepository.create(
+        member.id,
+        data.mainAreaId,
+        data.areaPreferenceOrder,
+        data.articlesSelected,
+        data.customPdfPath,
+        data.customPdfName
+      );
+
+      return { success: true, memberId: member.id };
+    } catch (error) {
+      return { success: false, error: 'Erro ao salvar seleção' };
+    }
+  }
+
+  getSelection(memberId: number) {
+    return selectionRepository.findByMemberIdWithMatricula(memberId);
+  }
+
+  getAreaName(areaId: number): string {
+    const area = AREAS.find((a) => a.id === areaId);
+    return area ? area.name : 'Área Desconhecida';
+  }
+
+  getAreaColor(areaId: number): string {
+    const area = AREAS.find((a) => a.id === areaId);
+    return area ? area.color : '#999999';
+  }
+}
+
+export const selectionService = new SelectionService();

@@ -1,0 +1,156 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #ff914d;
+  --color-primary-light: #ffb080;
+  --color-primary-dark: #e67a38;
+  --color-primary-darker: #cc6a2c;
+
+  --color-dark-50: #f0f4f9;
+  --color-dark-100: #e1eaf3;
+  --color-dark-200: #c3d5e7;
+  --color-dark-300: #a5bfd8;
+  --color-dark-400: #87aacc;
+  --color-dark-500: #6995c0;
+  --color-dark-600: #4b80b4;
+  --color-dark-700: #2d6ba8;
+  --color-dark-800: #1a4270;
+  --color-dark-900: #0f2845;
+  --color-dark-950: #020f1f;
+
+  --font-sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", Menlo, "Courier New", monospace;
+
+  --shadow-primary: 0 0 20px rgba(255, 145, 77, 0.5);
+  --shadow-dark: 0 0 20px rgba(4, 28, 48, 0.5);
+  --shadow-glow: 0 0 30px rgba(255, 145, 77, 0.3);
+
+  --animate-glow: glow 3s ease-in-out infinite;
+}
+
+:root {
+  --color-primary: #ff914d;
+  --color-primary-light: #ffb080;
+  --color-primary-dark: #e67a38;
+  --color-primary-darker: #cc6a2c;
+}
+
+html {
+  color-scheme: dark;
+  background-color: #020f1f;
+}
+
+body {
+  @apply bg-dark-950 text-primary;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-dark-900;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-primary rounded-full;
+  background: linear-gradient(180deg, var(--color-primary), var(--color-primary-dark));
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply opacity-80;
+}
+
+/* Selection utilities */
+::selection {
+  @apply bg-primary/30 text-primary;
+}
+
+/* Custom animations */
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(255, 145, 77, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(255, 145, 77, 0.8);
+  }
+}
+
+@keyframes circuit-line {
+  0% {
+    stroke-dashoffset: 1000;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Utility classes */
+.neon-glow {
+  box-shadow: 0 0 20px rgba(255, 145, 77, 0.5);
+}
+
+.neon-glow-purple {
+  box-shadow: 0 0 20px rgba(230, 122, 56, 0.5);
+}
+
+.glow-pulse {
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+.circuit-line {
+  animation: circuit-line 2s ease-in-out;
+}
+
+/* Focus states for accessibility */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Smooth transitions */
+* {
+  @apply transition-colors duration-200;
+}
+
+/* Dark mode preference */
+@media (prefers-color-scheme: light) {
+  html {
+    color-scheme: dark;
+  }
+}
