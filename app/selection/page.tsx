@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { StepIdentification } from './components/StepIdentification';
 import { StepMainArea } from './components/StepMainArea';
@@ -11,6 +11,7 @@ import { StepReview } from './components/StepReview';
 import { ProgressBar } from './components/ProgressBar';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { AREAS } from '@/utils/constants';
 
 export interface SelectionState {
   matricula: string;
@@ -23,6 +24,87 @@ export interface SelectionState {
 }
 
 const TOTAL_STEPS = 6;
+const DRAFT_STORAGE_KEY = 'coretech_selection_draft_v1';
+const DRAFT_VERSION = 1;
+const DRAFT_TTL_MS = 1000 * 60 * 60 * 2; // 2 hours
+
+interface SelectionDraftPayload {
+  version: number;
+  savedAt: number;
+  step: number;
+  data: {
+    matricula: string;
+    fullName: string;
+    mainAreaId: number | null;
+    areaPreferenceOrder: number[];
+    articlesSelected: Record<number, string>;
+  };
+}
+
+function isAreaId(value: unknown): value is number {
+  return typeof value === 'number' && AREAS.some((area) => area.id === value);
+}
+
+function sanitizeDraft(raw: unknown): SelectionDraftPayload | null {
+  if (!raw || typeof raw !== 'object') {
+    return null;
+  }
+
+  const payload = raw as Partial<SelectionDraftPayload>;
+  if (payload.version !== DRAFT_VERSION || typeof payload.savedAt !== 'number') {
+    return null;
+  }
+
+  if (Date.now() - payload.savedAt > DRAFT_TTL_MS) {
+    return null;
+  }
+
+  if (!payload.data || typeof payload.data !== 'object') {
+    return null;
+  }
+
+  const rawData = payload.data as SelectionDraftPayload['data'];
+  const matricula = typeof rawData.matricula === 'string' ? rawData.matricula.slice(0, 12) : '';
+  const fullName = typeof rawData.fullName === 'string' ? rawData.fullName.slice(0, 120) : '';
+
+  const mainAreaId = isAreaId(rawData.mainAreaId) ? rawData.mainAreaId : null;
+
+  const areaPreferenceOrder = Array.isArray(rawData.areaPreferenceOrder)
+    ? rawData.areaPreferenceOrder.filter(isAreaId)
+    : [];
+
+  const uniquePreference = Array.from(new Set(areaPreferenceOrder)).filter((id) => id !== mainAreaId);
+
+  const rawArticles = rawData.articlesSelected && typeof rawData.articlesSelected === 'object'
+    ? rawData.articlesSelected
+    : {};
+
+  const articlesSelected = Object.entries(rawArticles).reduce<Record<number, string>>((acc, [key, value]) => {
+    const numericKey = Number(key);
+    if (!isAreaId(numericKey) || typeof value !== 'string' || !value.trim()) {
+      return acc;
+    }
+
+    acc[numericKey] = value;
+    return acc;
+  }, {});
+
+  const parsedStep = typeof payload.step === 'number' ? Math.floor(payload.step) : 1;
+  const step = Math.min(Math.max(parsedStep, 1), TOTAL_STEPS);
+
+  return {
+    version: DRAFT_VERSION,
+    savedAt: payload.savedAt,
+    step,
+    data: {
+      matricula,
+      fullName,
+      mainAreaId,
+      areaPreferenceOrder: uniquePreference,
+      articlesSelected,
+    },
+  };
+}
 
 function formatSubmissionId(memberId: unknown): string | null {
   if (memberId === null || memberId === undefined) {
@@ -52,8 +134,10 @@ export default function SelectionPage() {
   const [error, setError] = useState<string>('');
   const [matriculaExists, setMatriculaExists] = useState(false);
   const [isMatriculaValid, setIsMatriculaValid] = useState(false);
+  const [isMatriculaChecking, setIsMatriculaChecking] = useState(false);
   const [showGuideModal, setShowGuideModal] = useState(false);
   const [showArticlesGuideModal, setShowArticlesGuideModal] = useState(false);
+  const [restorationNotice, setRestorationNotice] = useState('');
 
   const goToStep = useCallback((step: number) => {
     setCurrentStep(step);
@@ -78,6 +162,11 @@ export default function SelectionPage() {
 
     if (currentStep === 1 && !selectionState.fullName.trim()) {
       setError('Insira seu nome completo');
+      return;
+    }
+
+    if (currentStep === 1 && isMatriculaChecking) {
+      setError('Aguarde a validação da matrícula antes de continuar');
       return;
     }
 
@@ -126,7 +215,7 @@ export default function SelectionPage() {
     if (currentStep < TOTAL_STEPS) {
       goToStep(currentStep + 1);
     }
-  }, [currentStep, selectionState, matriculaExists, isMatriculaValid, goToStep]);
+  }, [currentStep, selectionState, matriculaExists, isMatriculaValid, isMatriculaChecking, goToStep]);
 
   const handlePrevious = useCallback(() => {
     setError('');
@@ -138,6 +227,58 @@ export default function SelectionPage() {
   const updateState = useCallback((updates: Partial<SelectionState>) => {
     setSelectionState((prev) => ({ ...prev, ...updates }));
     setError('');
+  }, []);
+
+  const handleMatriculaChange = useCallback((matricula: string) => {
+    let switchedIdentity = false;
+
+    setSelectionState((prev) => {
+      const isSwitchingIdentity =
+        prev.matricula.length === 12 &&
+        matricula.length === 12 &&
+        prev.matricula !== matricula;
+
+      if (!isSwitchingIdentity) {
+        return { ...prev, matricula };
+      }
+
+      switchedIdentity = true;
+
+      // Reset dependent selections when user switches to a different complete matrícula.
+      return {
+        ...prev,
+        matricula,
+        mainAreaId: null,
+        areaPreferenceOrder: [],
+        articlesSelected: {},
+        customPdf: null,
+      };
+    });
+
+    setError('');
+    setIsMatriculaValid(false);
+    setMatriculaExists(false);
+    setRestorationNotice('');
+
+    if (switchedIdentity) {
+      setCurrentStep(1);
+    }
+  }, []);
+
+  const handleFullNameChange = useCallback((fullName: string) => {
+    updateState({ fullName });
+  }, [updateState]);
+
+  const handleMatriculaExistsChange = useCallback((exists: boolean) => {
+    setMatriculaExists(exists);
+  }, []);
+
+  const handleMatriculaValidChange = useCallback((isValid: boolean) => {
+    setIsMatriculaValid(isValid);
+  }, []);
+
+  const handleMatriculaCheckingChange = useCallback((isChecking: boolean) => {
+    setIsMatriculaChecking(isChecking);
   }, []);
 
   const handleSubmit = async () => {
@@ -179,6 +320,7 @@ export default function SelectionPage() {
         ? `/selection/success?submissionId=${encodeURIComponent(formattedSubmissionId)}`
         : '/selection/success';
 
+      sessionStorage.removeItem(DRAFT_STORAGE_KEY);
       window.location.href = successUrl;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao submeter seleção');
@@ -187,8 +329,62 @@ export default function SelectionPage() {
     }
   };
 
+  useEffect(() => {
+    try {
+      const serialized = sessionStorage.getItem(DRAFT_STORAGE_KEY);
+      if (!serialized) {
+        return;
+      }
+
+      const parsed = JSON.parse(serialized);
+      const draft = sanitizeDraft(parsed);
+
+      if (!draft) {
+        sessionStorage.removeItem(DRAFT_STORAGE_KEY);
+        return;
+      }
+
+      setSelectionState((prev) => ({
+        ...prev,
+        matricula: draft.data.matricula,
+        fullName: draft.data.fullName,
+        mainAreaId: draft.data.mainAreaId,
+        areaPreferenceOrder: draft.data.areaPreferenceOrder,
+        articlesSelected: draft.data.articlesSelected,
+        customPdf: null,
+      }));
+      setCurrentStep(draft.step);
+      setRestorationNotice('Rascunho restaurado. Se você havia enviado um PDF, será necessário anexar novamente por segurança.');
+    } catch {
+      sessionStorage.removeItem(DRAFT_STORAGE_KEY);
+    }
+  }, []);
+
+  useEffect(() => {
+    const draft: SelectionDraftPayload = {
+      version: DRAFT_VERSION,
+      savedAt: Date.now(),
+      step: currentStep,
+      data: {
+        matricula: selectionState.matricula,
+        fullName: selectionState.fullName,
+        mainAreaId: selectionState.mainAreaId,
+        areaPreferenceOrder: selectionState.areaPreferenceOrder,
+        articlesSelected: selectionState.articlesSelected as Record<number, string>,
+      },
+    };
+
+    const timer = window.setTimeout(() => {
+      sessionStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+    }, 200);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [currentStep, selectionState]);
+
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen min-h-[100svh] flex flex-col">
       <AnimatePresence>
         {showGuideModal && (
           <motion.div
@@ -274,16 +470,24 @@ export default function SelectionPage() {
       </AnimatePresence>
 
       {/* Header */}
-      <div className="relative pt-8 pb-6 px-4 border-b border-primary/20">
+      <div className="relative pt-6 sm:pt-8 pb-5 sm:pb-6 px-4 border-b border-primary/20">
         <div className="max-w-4xl mx-auto">
-          <div className="flex items-center justify-between mb-4">
-            <Link href="/">
-              <button className="px-4 py-2 border border-primary text-primary rounded-lg hover:bg-primary/10 transition">
+          <div className="mb-4 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <Link
+                href="/"
+                className="inline-flex items-center px-3 sm:px-4 py-2 border border-primary text-primary rounded-lg hover:bg-primary/10 transition text-sm sm:text-base"
+              >
                 ← Voltar
-              </button>
-            </Link>
-            <h1 className="text-2xl font-bold text-primary font-mono">SELEÇÃO DE SUB-ÁREAS CORETECH</h1>
-            <div className="w-12 text-right" />
+              </Link>
+              <span className="text-xs sm:text-sm text-gray-400 font-mono whitespace-nowrap">
+                Passo {currentStep}/{TOTAL_STEPS}
+              </span>
+            </div>
+
+            <h1 className="text-sm sm:text-xl md:text-2xl font-bold text-primary font-mono leading-tight sm:leading-normal text-left sm:text-center">
+              SELEÇÃO DE SUB-ÁREAS CORETECH
+            </h1>
           </div>
 
           <ProgressBar currentStep={currentStep} totalSteps={TOTAL_STEPS} />
@@ -293,6 +497,16 @@ export default function SelectionPage() {
       {/* Content */}
       <div className="flex-1 flex items-center justify-center px-4 py-8">
         <div className="w-full max-w-2xl">
+          {restorationNotice && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="mb-6 p-4 bg-primary/20 border border-primary/60 rounded-lg text-primary-light text-sm"
+            >
+              {restorationNotice}
+            </motion.div>
+          )}
+
           <AnimatePresence mode="wait">
             <motion.div
               key={currentStep}
@@ -305,10 +519,11 @@ export default function SelectionPage() {
                 <StepIdentification
                   matricula={selectionState.matricula}
                   fullName={selectionState.fullName}
-                  onMatriculaChange={(matricula) => updateState({ matricula })}
-                  onFullNameChange={(fullName) => updateState({ fullName })}
-                  onExists={(exists) => setMatriculaExists(exists)}
-                  onValidChange={(isValid) => setIsMatriculaValid(isValid)}
+                  onMatriculaChange={handleMatriculaChange}
+                  onFullNameChange={handleFullNameChange}
+                  onExists={handleMatriculaExistsChange}
+                  onValidChange={handleMatriculaValidChange}
+                  onCheckingChange={handleMatriculaCheckingChange}
                 />
               )}
 
@@ -390,9 +605,10 @@ export default function SelectionPage() {
             ) : (
               <button
                 onClick={handleNext}
-                className="px-6 py-2 bg-gradient-to-r from-primary to-primary-light text-dark-950 font-bold rounded-lg hover:shadow-lg hover:shadow-primary/50 transition"
+                disabled={currentStep === 1 && isMatriculaChecking}
+                className="px-6 py-2 bg-gradient-to-r from-primary to-primary-light text-dark-950 font-bold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg hover:shadow-primary/50 transition"
               >
-                Próximo
+                {currentStep === 1 && isMatriculaChecking ? 'Validando...' : 'Próximo'}
               </button>
             )}
           </div>

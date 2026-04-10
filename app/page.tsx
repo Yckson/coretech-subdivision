@@ -5,7 +5,10 @@ import { motion } from 'framer-motion';
 
 export default function Home() {
   return (
-    <div className="min-h-screen animated-gradient from-dark-950 via-dark-900 to-dark-950 flex items-center justify-center px-4" style={{ backgroundImage: 'linear-gradient(-45deg, #020f1f, #0f2845, #020f1f)' }}>
+    <div
+      className="relative min-h-screen min-h-[100svh] overflow-hidden animated-gradient from-dark-950 via-dark-900 to-dark-950 flex items-center justify-center px-4 py-8"
+      style={{ backgroundImage: 'linear-gradient(-45deg, #020f1f, #0f2845, #020f1f)' }}
+    >
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -36,16 +39,15 @@ export default function Home() {
         </p>
 
         {/* Buttons */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Link href="/selection">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="px-8 py-4 border-2 border-primary text-primary font-bold rounded-lg hover:border-white hover:text-white hover:bg-primary transition-all duration-300"
+        <div className="flex flex-col sm:flex-row items-center gap-4 justify-center">
+          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="inline-flex">
+            <Link
+              href="/selection"
+              className="inline-flex items-center justify-center px-8 py-4 border-2 border-primary text-primary font-bold rounded-lg hover:border-white hover:text-white hover:bg-primary transition-all duration-300"
             >
               Iniciar Seleção
-            </motion.button>
-          </Link>
+            </Link>
+          </motion.div>
         </div>
 
         {/* Footer Info */}
@@ -55,8 +57,8 @@ export default function Home() {
       </motion.div>
 
       {/* Background decorative elements */}
-      <div className="absolute top-10 right-10 w-64 h-64 bg-neon-cyan opacity-5 rounded-full blur-3xl" />
-      <div className="absolute bottom-10 left-10 w-96 h-96 bg-neon-purple opacity-5 rounded-full blur-3xl" />
+      <div className="pointer-events-none absolute top-10 right-10 w-64 h-64 bg-neon-cyan opacity-5 rounded-full blur-3xl" />
+      <div className="pointer-events-none absolute bottom-10 left-10 w-96 h-96 bg-neon-purple opacity-5 rounded-full blur-3xl" />
     </div>
   );
 }

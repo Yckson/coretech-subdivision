@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Loader } from 'lucide-react';
 import { validateMatricula } from '@/utils/validators';
@@ -12,6 +12,7 @@ interface StepIdentificationProps {
   onFullNameChange: (fullName: string) => void;
   onExists: (exists: boolean) => void;
   onValidChange?: (isValid: boolean) => void;
+  onCheckingChange?: (isChecking: boolean) => void;
 }
 
 export function StepIdentification({
@@ -21,10 +22,13 @@ export function StepIdentification({
   onFullNameChange,
   onExists,
   onValidChange,
+  onCheckingChange,
 }: StepIdentificationProps) {
   const [error, setError] = useState<string>('');
   const [isChecking, setIsChecking] = useState(false);
-  const [isValid, setIsValid] = useState(false);
+  const [validationStatus, setValidationStatus] = useState<'idle' | 'checking' | 'invalid' | 'valid'>('idle');
+  const lastValidationRequestRef = useRef(0);
+  const lastValidatedMatriculaRef = useRef<string>('');
 
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -32,55 +36,106 @@ export function StepIdentification({
       onMatriculaChange(value);
 
       setError('');
-      if (value.length === 12) {
-        const valid = validateMatricula(value);
-        setIsValid(valid);
-        onValidChange?.(valid);
-      } else {
-        setIsValid(false);
+      setValidationStatus('idle');
+
+      if (value.length < 12) {
         onValidChange?.(false);
+        onExists(false);
+        onCheckingChange?.(false);
       }
     },
-    [onMatriculaChange, onValidChange]
+    [onMatriculaChange, onValidChange, onExists, onCheckingChange]
   );
 
-  // Check if matricula exists when valid
-  useEffect(() => {
-    if (isValid && matricula.length === 12) {
-      checkMatricula();
-    }
-  }, [isValid, matricula]);
-
-  const checkMatricula = useCallback(async () => {
+  const checkMatricula = useCallback(async (matriculaToCheck: string) => {
+    const requestId = ++lastValidationRequestRef.current;
     setIsChecking(true);
+    setValidationStatus('checking');
+    onCheckingChange?.(true);
+    onValidChange?.(false);
+    onExists(false);
+    lastValidatedMatriculaRef.current = matriculaToCheck;
+
     try {
       const response = await fetch('/selection/api/validate-id', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ matricula }),
+        body: JSON.stringify({ matricula: matriculaToCheck }),
       });
 
       const data = await response.json();
 
+      // Ignore stale responses from previous requests.
+      if (requestId !== lastValidationRequestRef.current) {
+        return;
+      }
+
       if (!data.valid) {
-        setError(data.error);
-        setIsValid(false);
+        setError(data.error || 'A matrícula digitada é inválida. Verifique os 12 dígitos');
+        setValidationStatus('invalid');
+        onValidChange?.(false);
         onExists(false);
       } else {
         if (data.exists) {
           onExists(true);
+          onValidChange?.(false);
+          setValidationStatus('invalid');
           setError('Esta matrícula já realizou a seleção');
         } else {
           onExists(false);
           setError('');
+          setValidationStatus('valid');
+          onValidChange?.(true);
         }
       }
     } catch (err) {
       setError('Erro ao validar matrícula');
+      setValidationStatus('invalid');
+      onValidChange?.(false);
+      onExists(false);
     } finally {
-      setIsChecking(false);
+      if (requestId === lastValidationRequestRef.current) {
+        setIsChecking(false);
+        onCheckingChange?.(false);
+      }
     }
-  }, [matricula, onExists]);
+  }, [onCheckingChange, onExists, onValidChange]);
+
+  useEffect(() => {
+    if (matricula.length !== 12) {
+      setIsChecking(false);
+      setValidationStatus('idle');
+      setError('');
+      lastValidatedMatriculaRef.current = '';
+      onValidChange?.(false);
+      onExists(false);
+      onCheckingChange?.(false);
+      return;
+    }
+
+    const formatIsValid = validateMatricula(matricula);
+    if (!formatIsValid) {
+      setIsChecking(false);
+      setValidationStatus('invalid');
+      setError('A matrícula digitada é inválida. Verifique os 12 dígitos');
+      onValidChange?.(false);
+      onExists(false);
+      onCheckingChange?.(false);
+      return;
+    }
+
+    if (lastValidatedMatriculaRef.current === matricula) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      checkMatricula(matricula);
+    }, 300);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [matricula, checkMatricula, onCheckingChange, onExists, onValidChange]);
 
   return (
     <motion.div
@@ -113,10 +168,12 @@ export function StepIdentification({
             placeholder="202400000000"
             maxLength={12}
             className={`w-full px-4 py-3 rounded-lg bg-dark-800 border-2 font-mono text-lg tracking-wider transition ${
-              matricula.length === 12 && isValid
+              validationStatus === 'valid'
                 ? 'border-primary shadow-lg shadow-primary/50'
-                : matricula.length === 12 && !isValid
+                : validationStatus === 'invalid'
                 ? 'border-red-500'
+                : validationStatus === 'checking'
+                ? 'border-primary/70'
                 : 'border-gray-600'
             }`}
           />
@@ -133,12 +190,16 @@ export function StepIdentification({
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             className={`p-3 rounded-lg text-sm ${
-              isValid && !error
+              validationStatus === 'valid' && !error
                 ? 'bg-green-500/20 text-green-300 border border-green-500'
+                : validationStatus === 'checking'
+                ? 'bg-primary/20 text-primary-light border border-primary/50'
                 : 'bg-red-500/20 text-red-300 border border-red-500'
             }`}
           >
-            {error || 'Matrícula válida e disponível'}
+            {validationStatus === 'checking'
+              ? 'Validando matrícula...'
+              : error || 'Matrícula válida e disponível'}
           </motion.div>
         )}
 
