@@ -87,7 +87,7 @@ export default function SuccessPage() {
           transition={{ delay: 0.6 }}
           className="text-gray-300 mb-8 text-lg"
         >
-          <p>Obrigado por participar da Seleção Coretech! Você receberá atualizações em breve.</p>
+          <p>Obrigado por participar da Seleção de Sub-áreas da Coretech! Você receberá atualizações em breve.</p>
         </motion.div>
 
         {/* Info box */}
@@ -112,12 +112,6 @@ export default function SuccessPage() {
           <Link href="/">
             <button className="w-full px-6 py-3 border-2 border-neon-cyan text-neon-cyan font-bold rounded-lg hover:bg-neon-cyan hover:text-dark-950 transition">
               Voltar ao Início
-            </button>
-          </Link>
-
-          <Link href="/admin">
-            <button className="w-full px-6 py-3 border-2 border-neon-purple text-neon-purple font-bold rounded-lg hover:bg-neon-purple/10 transition">
-              Painel Admin
             </button>
           </Link>
         </motion.div>

@@ -19,6 +19,7 @@ export function initializeDatabase(): Database.Database {
     CREATE TABLE IF NOT EXISTS members (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       matricula TEXT UNIQUE NOT NULL,
+      full_name TEXT NOT NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -46,6 +47,13 @@ export function initializeDatabase(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_selections_member_id ON selections(member_id);
     CREATE INDEX IF NOT EXISTS idx_admin_sessions_token ON admin_sessions(token);
   `);
+
+  // Backward-compatible migration for existing databases.
+  const membersColumns = db.prepare('PRAGMA table_info(members)').all() as Array<{ name: string }>;
+  const hasFullNameColumn = membersColumns.some((column) => column.name === 'full_name');
+  if (!hasFullNameColumn) {
+    db.exec("ALTER TABLE members ADD COLUMN full_name TEXT NOT NULL DEFAULT ''");
+  }
 
   return db;
 }

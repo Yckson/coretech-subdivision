@@ -10,9 +10,11 @@ import { StepCustomIdea } from './components/StepCustomIdea';
 import { StepReview } from './components/StepReview';
 import { ProgressBar } from './components/ProgressBar';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export interface SelectionState {
   matricula: string;
+  fullName: string;
   mainAreaId: number | null;
   areaPreferenceOrder: number[];
   articlesSelected: { [key: number]: string };
@@ -36,9 +38,11 @@ function formatSubmissionId(memberId: unknown): string | null {
 }
 
 export default function SelectionPage() {
+  const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [selectionState, setSelectionState] = useState<SelectionState>({
     matricula: '',
+    fullName: '',
     mainAreaId: null,
     areaPreferenceOrder: [],
     articlesSelected: {},
@@ -47,6 +51,21 @@ export default function SelectionPage() {
   });
   const [error, setError] = useState<string>('');
   const [matriculaExists, setMatriculaExists] = useState(false);
+  const [isMatriculaValid, setIsMatriculaValid] = useState(false);
+  const [showGuideModal, setShowGuideModal] = useState(false);
+  const [showArticlesGuideModal, setShowArticlesGuideModal] = useState(false);
+
+  const goToStep = useCallback((step: number) => {
+    setCurrentStep(step);
+
+    if (step === 2) {
+      setShowGuideModal(true);
+    }
+
+    if (step === 4) {
+      setShowArticlesGuideModal(true);
+    }
+  }, []);
 
   const handleNext = useCallback(() => {
     setError('');
@@ -54,6 +73,21 @@ export default function SelectionPage() {
     // Validate current step
     if (currentStep === 1 && !selectionState.matricula) {
       setError('Insira uma matrícula válida');
+      return;
+    }
+
+    if (currentStep === 1 && !selectionState.fullName.trim()) {
+      setError('Insira seu nome completo');
+      return;
+    }
+
+    if (currentStep === 1 && !isMatriculaValid) {
+      setError('A matrícula digitada é inválida. Verifique os 12 dígitos');
+      return;
+    }
+
+    if (currentStep === 1 && matriculaExists) {
+      setError('Você não pode prosseguir com uma matrícula que já realizou a seleção. Por favor, insira uma matrícula diferente.');
       return;
     }
 
@@ -67,22 +101,39 @@ export default function SelectionPage() {
       return;
     }
 
-    if (currentStep === 4 && Object.keys(selectionState.articlesSelected).length === 0) {
-      setError('Selecione pelo menos um artigo');
-      return;
+    if (currentStep === 4) {
+      const firstAreaId = selectionState.mainAreaId;
+      const secondAreaId = selectionState.areaPreferenceOrder[0];
+
+      const firstAreaArticle = selectionState.articlesSelected[firstAreaId || -1];
+      const secondAreaArticle = selectionState.articlesSelected[secondAreaId || -1];
+
+      if (!firstAreaArticle) {
+        if (selectionState.customPdf) {
+          setError('Você deve escolher um artigo da lista para a 1ª área, mesmo ao enviar um arquivo customizado');
+        } else {
+          setError('Você deve escolher um artigo para a 1ª área (sua área principal)');
+        }
+        return;
+      }
+
+      if (!secondAreaArticle) {
+        setError('Você deve escolher um artigo para a 2ª área');
+        return;
+      }
     }
 
     if (currentStep < TOTAL_STEPS) {
-      setCurrentStep(currentStep + 1);
+      goToStep(currentStep + 1);
     }
-  }, [currentStep, selectionState]);
+  }, [currentStep, selectionState, matriculaExists, isMatriculaValid, goToStep]);
 
   const handlePrevious = useCallback(() => {
     setError('');
     if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
+      goToStep(currentStep - 1);
     }
-  }, [currentStep]);
+  }, [currentStep, goToStep]);
 
   const updateState = useCallback((updates: Partial<SelectionState>) => {
     setSelectionState((prev) => ({ ...prev, ...updates }));
@@ -96,6 +147,7 @@ export default function SelectionPage() {
     try {
       const formData = new FormData();
       formData.append('matricula', selectionState.matricula);
+      formData.append('fullName', selectionState.fullName.trim());
       formData.append('mainAreaId', String(selectionState.mainAreaId));
       formData.append('areaPreferenceOrder', JSON.stringify(selectionState.areaPreferenceOrder));
       formData.append('articlesSelected', JSON.stringify(selectionState.articlesSelected));
@@ -137,6 +189,90 @@ export default function SelectionPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
+      <AnimatePresence>
+        {showGuideModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4"
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 20, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.98 }}
+              transition={{ duration: 0.2 }}
+              className="w-full max-w-lg rounded-2xl border border-primary/40 bg-dark-900 p-6 shadow-xl shadow-primary/20"
+            >
+              <h2 className="text-2xl font-bold text-primary font-mono mb-3">Guia de Sub-áreas</h2>
+              <p className="text-gray-200 leading-relaxed">
+                Você deseja abrir o guia oficial de sub-áreas da Liga Acadêmica de Hardware antes de continuar a seleção?
+              </p>
+
+              <div className="mt-6 flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+                <button
+                  onClick={() => setShowGuideModal(false)}
+                  className="px-4 py-2 rounded-lg border border-gray-500 text-gray-200 hover:bg-dark-800 transition"
+                >
+                  Agora não
+                </button>
+
+                <button
+                  onClick={() => {
+                    setShowGuideModal(false);
+                    router.push('/selection/guia-subareas');
+                  }}
+                  className="px-4 py-2 rounded-lg bg-gradient-to-r from-primary to-primary-light text-dark-950 font-bold hover:shadow-lg hover:shadow-primary/40 transition"
+                >
+                  Sim, ver guia
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {showArticlesGuideModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4"
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 20, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.98 }}
+              transition={{ duration: 0.2 }}
+              className="w-full max-w-lg rounded-2xl border border-primary/40 bg-dark-900 p-6 shadow-xl shadow-primary/20"
+            >
+              <h2 className="text-2xl font-bold text-primary font-mono mb-3">Guia de Artigos</h2>
+              <p className="text-gray-200 leading-relaxed">
+                Você deseja abrir o guia explicativo com a descrição completa dos artigos por área antes de escolher?
+              </p>
+
+              <div className="mt-6 flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+                <button
+                  onClick={() => setShowArticlesGuideModal(false)}
+                  className="px-4 py-2 rounded-lg border border-gray-500 text-gray-200 hover:bg-dark-800 transition"
+                >
+                  Agora não
+                </button>
+
+                <button
+                  onClick={() => {
+                    setShowArticlesGuideModal(false);
+                    router.push('/selection/guia-artigos');
+                  }}
+                  className="px-4 py-2 rounded-lg bg-gradient-to-r from-primary to-primary-light text-dark-950 font-bold hover:shadow-lg hover:shadow-primary/40 transition"
+                >
+                  Sim, ver guia
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header */}
       <div className="relative pt-8 pb-6 px-4 border-b border-primary/20">
         <div className="max-w-4xl mx-auto">
@@ -146,7 +282,7 @@ export default function SelectionPage() {
                 ← Voltar
               </button>
             </Link>
-            <h1 className="text-2xl font-bold text-primary font-mono">SELEÇÃO CORETECH</h1>
+            <h1 className="text-2xl font-bold text-primary font-mono">SELEÇÃO DE SUB-ÁREAS CORETECH</h1>
             <div className="w-12 text-right" />
           </div>
 
@@ -168,8 +304,11 @@ export default function SelectionPage() {
               {currentStep === 1 && (
                 <StepIdentification
                   matricula={selectionState.matricula}
+                  fullName={selectionState.fullName}
                   onMatriculaChange={(matricula) => updateState({ matricula })}
+                  onFullNameChange={(fullName) => updateState({ fullName })}
                   onExists={(exists) => setMatriculaExists(exists)}
+                  onValidChange={(isValid) => setIsMatriculaValid(isValid)}
                 />
               )}
 

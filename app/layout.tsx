@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import '../styles/globals.css';
 
 export const metadata: Metadata = {
-  title: 'Coretech Subdivision - Seleção de Subáreas',
-  description: 'Sistema de seleção de subáreas e preferências de artigos para a liga Coretech',
+  title: 'Coretech Subdivision - Seleção de Sub-áreas',
+  description: 'Sistema de seleção de sub-áreas e preferências de artigos para a liga Coretech',
 };
 
 export default function RootLayout({

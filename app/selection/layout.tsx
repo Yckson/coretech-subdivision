@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Seleção de Subáreas - Coretech',
-  description: 'Fluxo de seleção de subáreas e artigos',
+  title: 'Seleção de Sub-áreas - Coretech',
+  description: 'Fluxo de seleção de sub-áreas e artigos',
 };
 
 export default function SelectionLayout({

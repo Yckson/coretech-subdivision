@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-950 flex items-center justify-center px-4">
+    <div className="min-h-screen animated-gradient from-dark-950 via-dark-900 to-dark-950 flex items-center justify-center px-4" style={{ backgroundImage: 'linear-gradient(-45deg, #020f1f, #0f2845, #020f1f)' }}>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -14,11 +14,16 @@ export default function Home() {
       >
         {/* Header com efeito neon */}
         <div className="mb-8">
+          <img
+            src="/img/CORETECH.png"
+            alt="CORETECH Logo"
+            className="w-32 h-32 mx-auto mb-6 rounded-2xl shadow-lg"
+          />
           <h1 className="text-5xl md:text-6xl font-bold mb-4 bg-gradient-to-r from-neon-cyan via-neon-purple to-neon-lime bg-clip-text text-transparent">
             CORETECH
           </h1>
           <h2 className="text-2xl md:text-3xl text-neon-cyan mb-4 font-mono">
-            Seleção de Subáreas
+            Seleção de Sub-áreas
           </h2>
           <div className="h-1 w-32 mx-auto bg-gradient-to-r from-neon-cyan to-neon-purple rounded-full" />
         </div>
@@ -27,7 +32,7 @@ export default function Home() {
         <p className="text-gray-300 mb-12 text-lg leading-relaxed">
           Bem-vindo à plataforma de seleção da liga <span className="text-neon-cyan font-semibold">CORETECH</span>.
           <br />
-          Configure suas preferências de subáreas e escolha os artigos que mais te interessam.
+          Configure suas preferências de sub-áreas e escolha os artigos que mais te interessam.
         </p>
 
         {/* Buttons */}
@@ -36,18 +41,9 @@ export default function Home() {
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="px-8 py-4 border-2 border-neon-cyan text-neon-cyan font-bold rounded-lg hover:bg-neon-cyan hover:text-dark-950 transition-all duration-300"
+              className="px-8 py-4 border-2 border-primary text-primary font-bold rounded-lg hover:border-white hover:text-white hover:bg-primary transition-all duration-300"
             >
               Iniciar Seleção
-            </motion.button>
-          </Link>
-          <Link href="/admin">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="px-8 py-4 border-2 border-neon-purple text-neon-purple font-bold rounded-lg hover:bg-neon-purple hover:text-dark-950 transition-all duration-300"
-            >
-              Painel Admin
             </motion.button>
           </Link>
         </div>

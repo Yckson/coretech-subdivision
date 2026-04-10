@@ -31,10 +31,6 @@ export function StepArticleChoice({
   const handleCustomPdfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
     onCustomPdfSelect(file);
-
-    if (file) {
-      handleArticleSelect(mainAreaId, `CUSTOM_PDF: ${file.name}`);
-    }
   };
 
   return (

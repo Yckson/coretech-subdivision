@@ -8,6 +8,7 @@ import { AREAS, ARTICLES_BY_AREA } from '@/utils/constants';
 interface Selection {
   id: number;
   matricula: string;
+  full_name: string;
   main_area_id: number;
   mainAreaName: string;
   areaPreferenceOrder: number[];
@@ -71,6 +72,7 @@ export function SelectionDetailModal({
                   <h2 className="text-2xl font-bold text-primary mb-2">
                     Matrícula: <code className="font-mono">{selection.matricula}</code>
                   </h2>
+                  <p className="text-sm text-gray-300 mb-1">Nome: {selection.full_name}</p>
                   <p className="text-sm text-gray-400">{formatDate(selection.submitted_at)}</p>
                 </div>
                 <button

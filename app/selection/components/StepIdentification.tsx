@@ -7,11 +7,21 @@ import { validateMatricula } from '@/utils/validators';
 
 interface StepIdentificationProps {
   matricula: string;
+  fullName: string;
   onMatriculaChange: (matricula: string) => void;
+  onFullNameChange: (fullName: string) => void;
   onExists: (exists: boolean) => void;
+  onValidChange?: (isValid: boolean) => void;
 }
 
-export function StepIdentification({ matricula, onMatriculaChange, onExists }: StepIdentificationProps) {
+export function StepIdentification({
+  matricula,
+  fullName,
+  onMatriculaChange,
+  onFullNameChange,
+  onExists,
+  onValidChange,
+}: StepIdentificationProps) {
   const [error, setError] = useState<string>('');
   const [isChecking, setIsChecking] = useState(false);
   const [isValid, setIsValid] = useState(false);
@@ -23,12 +33,15 @@ export function StepIdentification({ matricula, onMatriculaChange, onExists }: S
 
       setError('');
       if (value.length === 12) {
-        setIsValid(validateMatricula(value));
+        const valid = validateMatricula(value);
+        setIsValid(valid);
+        onValidChange?.(valid);
       } else {
         setIsValid(false);
+        onValidChange?.(false);
       }
     },
-    [onMatriculaChange]
+    [onMatriculaChange, onValidChange]
   );
 
   // Check if matricula exists when valid
@@ -77,10 +90,21 @@ export function StepIdentification({ matricula, onMatriculaChange, onExists }: S
     >
       <div className="text-center mb-8">
         <h2 className="text-3xl font-bold text-primary mb-2 font-mono">Identificação</h2>
-        <p className="text-gray-300">Insira sua matrícula da UFS (12 dígitos)</p>
+        <p className="text-gray-300">Insira seu nome completo e sua matrícula da UFS (12 dígitos)</p>
       </div>
 
       <div className="space-y-4">
+        <div>
+          <input
+            type="text"
+            value={fullName}
+            onChange={(e) => onFullNameChange(e.target.value)}
+            placeholder="Nome completo"
+            maxLength={120}
+            className="w-full px-4 py-3 rounded-lg bg-dark-800 border-2 border-gray-600 text-base transition focus:border-primary"
+          />
+        </div>
+
         <div className="relative">
           <input
             type="text"

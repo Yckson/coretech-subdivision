@@ -71,11 +71,11 @@ export function DashboardControls({
 
       {/* Basic Search and Filter Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Search by Matrícula */}
+        {/* Search by Matrícula or Name */}
         <div className="md:col-span-2">
           <input
             type="text"
-            placeholder="Pesquisar por matrícula..."
+            placeholder="Pesquisar por matrícula ou nome..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             className="w-full px-4 py-2 rounded-lg bg-dark-900 border border-gray-600 text-gray-100 placeholder-gray-500 focus:border-primary focus:outline-none transition"

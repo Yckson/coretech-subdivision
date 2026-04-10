@@ -2,9 +2,12 @@ import { memberRepository } from '@/repositories/memberRepository';
 import { selectionRepository } from '@/repositories/selectionRepository';
 import { validateMatricula, validateAreaSelection, validateArticleSelection } from '@/utils/validators';
 import { AREAS, ARTICLES_BY_AREA } from '@/utils/constants';
+import fs from 'fs';
+import path from 'path';
 
 export interface SelectionData {
   matricula: string;
+  fullName: string;
   mainAreaId: number;
   areaPreferenceOrder: number[];
   articlesSelected: { [key: number]: string };
@@ -13,6 +16,52 @@ export interface SelectionData {
 }
 
 export class SelectionService {
+  private allowedMatriculasCache: Set<string> | null = null;
+  private externalAccessMatriculasCache: Set<string> | null = null;
+
+  private getAllowedMatriculas(): Set<string> {
+    if (this.allowedMatriculasCache && this.externalAccessMatriculasCache) {
+      return this.allowedMatriculasCache;
+    }
+
+    try {
+      const permitidosPath = path.join(process.cwd(), 'public', 'data', 'permitidos.json');
+      const fileContent = fs.readFileSync(permitidosPath, 'utf-8');
+      const parsed = JSON.parse(fileContent) as Array<{
+        matricula?: string;
+        matrícula?: string;
+        nome?: string;
+        externo?: boolean;
+      }>;
+
+      const externalAccessMatriculas = new Set<string>();
+
+      this.allowedMatriculasCache = new Set(
+        parsed
+          .map((entry) => {
+            const matricula = String(entry.matricula ?? entry.matrícula ?? '').trim();
+            const isExternal =
+              entry.externo === true || entry.nome?.toLowerCase().trim() === 'acesso externo';
+
+            if (matricula && isExternal) {
+              externalAccessMatriculas.add(matricula);
+            }
+
+            return matricula;
+          })
+          .filter((matricula) => matricula.length > 0)
+      );
+
+      this.externalAccessMatriculasCache = externalAccessMatriculas;
+    } catch (error) {
+      console.error('Error loading allowed matriculas from permitidos.json:', error);
+      this.allowedMatriculasCache = new Set();
+      this.externalAccessMatriculasCache = new Set();
+    }
+
+    return this.allowedMatriculasCache;
+  }
+
   validateMatricula(matricula: string): { valid: boolean; error?: string } {
     if (!validateMatricula(matricula)) {
       return { valid: false, error: 'Matrícula deve conter 12 dígitos' };
@@ -20,9 +69,22 @@ export class SelectionService {
     return { valid: true };
   }
 
+  isMatriculaAllowed(matricula: string): boolean {
+    return this.getAllowedMatriculas().has(matricula);
+  }
+
+  isExternalAccessMatricula(matricula: string): boolean {
+    this.getAllowedMatriculas();
+    return this.externalAccessMatriculasCache?.has(matricula) ?? false;
+  }
+
   checkMatriculaExists(matricula: string): boolean {
     const member = memberRepository.findByMatricula(matricula);
-    return member !== undefined;
+    if (!member) {
+      return false;
+    }
+
+    return selectionRepository.existsByMemberId(member.id);
   }
 
   validateSelection(data: Partial<SelectionData>): { valid: boolean; error?: string } {
@@ -34,6 +96,14 @@ export class SelectionService {
     const matriculaValid = this.validateMatricula(data.matricula);
     if (!matriculaValid.valid) {
       return matriculaValid;
+    }
+
+    if (!data.fullName || !data.fullName.trim()) {
+      return { valid: false, error: 'Nome completo é obrigatório' };
+    }
+
+    if (data.fullName.trim().length < 3) {
+      return { valid: false, error: 'Nome completo deve ter pelo menos 3 caracteres' };
     }
 
     // Validate area selection
@@ -59,6 +129,10 @@ export class SelectionService {
       return { success: false, error: validation.error };
     }
 
+    if (!this.isMatriculaAllowed(data.matricula)) {
+      return { success: false, error: 'Matrícula não está na lista de permitidos' };
+    }
+
     // Check if matricula already exists
     let member = memberRepository.findByMatricula(data.matricula);
     if (member && selectionRepository.findByMemberId(member.id)) {
@@ -67,7 +141,7 @@ export class SelectionService {
 
     // Create or get member
     if (!member) {
-      member = memberRepository.create(data.matricula);
+      member = memberRepository.create(data.matricula, data.fullName.trim());
     }
 
     // Create selection

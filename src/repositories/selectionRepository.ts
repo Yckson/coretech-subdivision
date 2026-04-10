@@ -14,6 +14,7 @@ export interface Selection {
 
 export interface SelectionWithMember extends Selection {
   matricula: string;
+  full_name: string;
 }
 
 class SelectionRepository {
@@ -30,7 +31,7 @@ class SelectionRepository {
 
   findByMemberIdWithMatricula(memberId: number): SelectionWithMember | undefined {
     const stmt = this.db.prepare(`
-      SELECT s.*, m.matricula
+      SELECT s.*, m.matricula, m.full_name
       FROM selections s
       JOIN members m ON s.member_id = m.id
       WHERE s.member_id = ?
@@ -40,12 +41,17 @@ class SelectionRepository {
 
   findAll(): SelectionWithMember[] {
     const stmt = this.db.prepare(`
-      SELECT s.*, m.matricula
+      SELECT s.*, m.matricula, m.full_name
       FROM selections s
       JOIN members m ON s.member_id = m.id
       ORDER BY s.submitted_at DESC
     `);
     return stmt.all() as SelectionWithMember[];
+  }
+
+  findById(id: number): Selection | undefined {
+    const stmt = this.db.prepare('SELECT * FROM selections WHERE id = ?');
+    return stmt.get(id) as Selection | undefined;
   }
 
   create(
@@ -56,10 +62,12 @@ class SelectionRepository {
     customPdfPath?: string,
     customPdfName?: string
   ): Selection {
+    const submittedAt = new Date().toISOString();
+
     const stmt = this.db.prepare(`
       INSERT INTO selections
-      (member_id, main_area_id, area_preference_order, articles_selected, custom_pdf_path, custom_pdf_name)
-      VALUES (?, ?, ?, ?, ?, ?)
+      (member_id, main_area_id, area_preference_order, articles_selected, custom_pdf_path, custom_pdf_name, submitted_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `);
 
     const result = stmt.run(
@@ -68,7 +76,8 @@ class SelectionRepository {
       JSON.stringify(areaPreferenceOrder),
       JSON.stringify(articlesSelected),
       customPdfPath || null,
-      customPdfName || null
+      customPdfName || null,
+      submittedAt
     );
 
     return {
@@ -79,7 +88,7 @@ class SelectionRepository {
       articles_selected: JSON.stringify(articlesSelected),
       custom_pdf_path: customPdfPath || null,
       custom_pdf_name: customPdfName || null,
-      submitted_at: new Date().toISOString(),
+      submitted_at: submittedAt,
     };
   }
 
@@ -118,6 +127,12 @@ class SelectionRepository {
   delete(memberId: number): boolean {
     const stmt = this.db.prepare('DELETE FROM selections WHERE member_id = ?');
     const result = stmt.run(memberId);
+    return result.changes > 0;
+  }
+
+  deleteById(id: number): boolean {
+    const stmt = this.db.prepare('DELETE FROM selections WHERE id = ?');
+    const result = stmt.run(id);
     return result.changes > 0;
   }
 

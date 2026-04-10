@@ -99,7 +99,7 @@ export function LoginForm({ onSubmit, isLoading = false, error }: LoginFormProps
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full px-4 py-2 bg-gradient-to-r from-neon-cyan to-neon-lightcyan text-dark-950 font-bold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-neon-cyan transition"
+            className="w-full px-4 py-2 border-2 border-primary text-primary font-bold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:border-white hover:text-white hover:bg-primary transition"
           >
             {isLoading ? 'Autenticando...' : 'Entrar'}
           </button>

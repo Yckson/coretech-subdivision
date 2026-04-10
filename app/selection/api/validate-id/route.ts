@@ -21,8 +21,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check if matricula already exists
-    const exists = selectionService.checkMatriculaExists(validated.matricula);
+    if (!selectionService.isMatriculaAllowed(validated.matricula)) {
+      return NextResponse.json(
+        { valid: false, error: 'Matrícula não está na lista de permitidos' },
+        { status: 403 }
+      );
+    }
+
+    // External access matriculas should always remain available in the UI flow.
+    const exists = selectionService.isExternalAccessMatricula(validated.matricula)
+      ? false
+      : selectionService.checkMatriculaExists(validated.matricula);
 
     return NextResponse.json({
       valid: true,

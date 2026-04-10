@@ -51,7 +51,7 @@ export default function AlreadyRegisteredPage() {
         >
           <h1 className="text-3xl font-bold text-primary font-mono">Já Registrado</h1>
           <p className="text-gray-300">
-            Esta matrícula já realizou a seleção de subáreas da Coretech.
+            Esta matrícula já realizou a seleção de sub-áreas da Coretech.
           </p>
         </motion.div>
 

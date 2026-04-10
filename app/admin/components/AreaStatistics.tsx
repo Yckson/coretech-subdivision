@@ -75,16 +75,10 @@ export function AreaStatistics({ selections }: AreaStatisticsProps) {
 
       {/* Summary */}
       <div className="mt-6 p-4 bg-dark-900 rounded-lg border border-gray-700">
-        <div className="grid grid-cols-2 gap-4">
+        <div>
           <div>
             <p className="text-xs text-gray-400 uppercase mb-1">Total de Seleções</p>
             <p className="text-2xl font-bold text-primary">{totalSelections}</p>
-          </div>
-          <div>
-            <p className="text-xs text-gray-400 uppercase mb-1">Áreas Preenchidas</p>
-            <p className="text-2xl font-bold text-primary-dark">
-              {areaStats.filter((a) => a.count > 0).length}/5
-            </p>
           </div>
         </div>
       </div>

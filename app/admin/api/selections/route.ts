@@ -5,6 +5,14 @@ import { AREAS } from '@/utils/constants';
 
 const SESSION_COOKIE_NAME = 'admin_session';
 
+function normalizeTimestamp(value: string): string {
+  // SQLite commonly stores DATETIME as "YYYY-MM-DD HH:MM:SS" without timezone.
+  // In this app this value should be interpreted as UTC.
+  const hasTimezone = /[zZ]|[+-]\d{2}:?\d{2}$/.test(value);
+  const normalized = value.includes(' ') ? value.replace(' ', 'T') : value;
+  return hasTimezone ? normalized : `${normalized}Z`;
+}
+
 export async function GET(req: NextRequest) {
   try {
     // Check authentication
@@ -25,6 +33,7 @@ export async function GET(req: NextRequest) {
       ...selection,
       areaPreferenceOrder: JSON.parse(selection.area_preference_order),
       articlesSelected: JSON.parse(selection.articles_selected),
+      submitted_at: normalizeTimestamp(selection.submitted_at),
       mainAreaName: AREAS.find((a) => a.id === selection.main_area_id)?.name || 'Desconhecida',
     }));
 

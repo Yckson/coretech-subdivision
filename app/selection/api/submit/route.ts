@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { selectionService } from '@/services/selectionService';
 import { uploadService } from '@/services/uploadService';
-import { IncomingForm } from 'formidable';
 import path from 'path';
 import { promises as fs } from 'fs';
 
@@ -14,6 +13,7 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
 
     const matricula = formData.get('matricula') as string;
+    const fullName = formData.get('fullName') as string;
     const mainAreaId = parseInt(formData.get('mainAreaId') as string, 10);
     const areaPreferenceOrder = JSON.parse(formData.get('areaPreferenceOrder') as string);
     const articlesSelected = JSON.parse(formData.get('articlesSelected') as string);
@@ -22,6 +22,7 @@ export async function POST(req: NextRequest) {
     // Validate inputs
     const validation = selectionService.validateSelection({
       matricula,
+      fullName,
       mainAreaId,
       areaPreferenceOrder,
       articlesSelected,
@@ -31,6 +32,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { success: false, error: validation.error },
         { status: 400 }
+      );
+    }
+
+    if (!selectionService.isMatriculaAllowed(matricula)) {
+      return NextResponse.json(
+        { success: false, error: 'Matrícula não está na lista de permitidos' },
+        { status: 403 }
+      );
+    }
+
+    if (selectionService.isExternalAccessMatricula(matricula)) {
+      return NextResponse.json(
+        {
+          success: true,
+          message: 'Acesso externo validado com sucesso',
+          redirectUrl: '/selection/success',
+        },
+        { status: 201 }
       );
     }
 
@@ -76,6 +95,7 @@ export async function POST(req: NextRequest) {
     // Submit selection
     const result = selectionService.submitSelection({
       matricula,
+      fullName,
       mainAreaId,
       areaPreferenceOrder,
       articlesSelected,

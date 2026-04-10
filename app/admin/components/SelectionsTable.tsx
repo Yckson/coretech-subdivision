@@ -2,19 +2,20 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowUpDown, ArrowUp, ArrowDown, Loader, Inbox, Download, Eye } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, Loader, Inbox, Download, Eye, Trash2 } from 'lucide-react';
 import { AREAS } from '@/utils/constants';
 
 interface Selection {
   id: number;
   matricula: string;
+  full_name: string;
   mainAreaName: string;
   areaPreferenceOrder: number[];
   articlesSelected: { [key: string]: string };
   custom_pdf_path: string | null;
   custom_pdf_name: string | null;
   submitted_at: string;
-  main_area_id?: number;
+  main_area_id: number;
 }
 
 interface SelectionsTableProps {
@@ -22,9 +23,10 @@ interface SelectionsTableProps {
   isLoading?: boolean;
   onDownloadPdf?: (selectionId: number) => void;
   onViewDetails?: (selection: Selection) => void;
+  onDeleteSelection?: (selection: Selection) => void;
 }
 
-type SortKey = 'matricula' | 'mainAreaName' | 'submitted_at';
+type SortKey = 'matricula' | 'full_name' | 'mainAreaName' | 'submitted_at';
 type SortOrder = 'asc' | 'desc';
 
 export function SelectionsTable({
@@ -32,6 +34,7 @@ export function SelectionsTable({
   isLoading = false,
   onDownloadPdf,
   onViewDetails,
+  onDeleteSelection,
 }: SelectionsTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>('submitted_at');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
@@ -113,6 +116,14 @@ export function SelectionsTable({
               </div>
             </th>
             <th
+              onClick={() => handleSort('full_name')}
+              className="px-4 py-3 text-left text-primary font-mono text-sm cursor-pointer hover:bg-dark-700 transition"
+            >
+              <div className="flex items-center gap-2 whitespace-nowrap">
+                Nome <SortIndicator column="full_name" />
+              </div>
+            </th>
+            <th
               onClick={() => handleSort('mainAreaName')}
               className="px-4 py-3 text-left text-primary font-mono text-sm cursor-pointer hover:bg-dark-700 transition"
             >
@@ -145,6 +156,9 @@ export function SelectionsTable({
             >
               <td className="px-4 py-3">
                 <code className="text-primary font-mono text-sm">{selection.matricula}</code>
+              </td>
+              <td className="px-4 py-3">
+                <span className="text-gray-300 text-sm">{selection.full_name}</span>
               </td>
               <td className="px-4 py-3">
                 <span className="text-gray-300 text-sm">{selection.mainAreaName}</span>
@@ -194,13 +208,22 @@ export function SelectionsTable({
                 {formatDate(selection.submitted_at)}
               </td>
               <td className="px-4 py-3 text-center">
-                <button
-                  onClick={() => onViewDetails?.(selection)}
-                  className="px-3 py-1 bg-primary-dark/20 text-primary-dark rounded text-xs font-semibold hover:bg-primary-dark/30 transition"
-                  title="Ver detalhes"
-                >
-                  <Eye size={14} />
-                </button>
+                <div className="flex items-center justify-center gap-2">
+                  <button
+                    onClick={() => onViewDetails?.(selection)}
+                    className="px-3 py-1 bg-primary-dark/20 text-primary-dark rounded text-xs font-semibold hover:bg-primary-dark/30 transition"
+                    title="Ver detalhes"
+                  >
+                    <Eye size={14} />
+                  </button>
+                  <button
+                    onClick={() => onDeleteSelection?.(selection)}
+                    className="px-3 py-1 bg-red-500/20 text-red-300 rounded text-xs font-semibold hover:bg-red-500/30 transition"
+                    title="Remover seleção"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
               </td>
             </motion.tr>
           ))}

@@ -6,6 +6,11 @@ export const SubmitSelectionSchema = z.object({
     .min(12, 'Matrícula deve ter 12 dígitos')
     .max(12, 'Matrícula deve ter 12 dígitos')
     .regex(/^\d{12}$/, 'Matrícula deve conter apenas números'),
+  fullName: z
+    .string()
+    .trim()
+    .min(3, 'Nome completo deve ter pelo menos 3 caracteres')
+    .max(120, 'Nome completo deve ter no máximo 120 caracteres'),
   mainAreaId: z
     .number()
     .int('Área principal deve ser um número inteiro')

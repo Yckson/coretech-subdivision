@@ -24,6 +24,16 @@ export function StepReview({ state }: StepReviewProps) {
         <p className="text-gray-300">Verifique seus dados antes de confirmar</p>
       </div>
 
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05 }}
+        className="p-4 rounded-lg bg-dark-800 border border-gray-600"
+      >
+        <p className="text-xs text-gray-400 uppercase mb-1">Nome completo</p>
+        <p className="text-lg text-primary font-semibold">{state.fullName}</p>
+      </motion.div>
+
       {/* Matricula */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
@@ -112,6 +122,27 @@ export function StepReview({ state }: StepReviewProps) {
           })}
         </div>
       </motion.div>
+
+      {/* Custom PDF */}
+      {state.customPdf && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.45 }}
+          className="p-4 rounded-lg bg-primary/5 border border-primary"
+        >
+          <p className="text-xs text-gray-400 uppercase mb-2">Arquivo Customizado</p>
+          <div className="flex items-center gap-3">
+            <FileText size={18} className="text-primary flex-shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-primary">{state.customPdf.name}</p>
+              <p className="text-xs text-gray-400">
+                {(state.customPdf.size / 1024).toFixed(2)} KB
+              </p>
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {/* Summary */}
       <motion.div

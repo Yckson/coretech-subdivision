@@ -12,6 +12,7 @@ import { AreaStatistics } from './components/AreaStatistics';
 interface Selection {
   id: number;
   matricula: string;
+  full_name: string;
   main_area_id: number;
   mainAreaName: string;
   areaPreferenceOrder: number[];
@@ -19,6 +20,13 @@ interface Selection {
   custom_pdf_path: string | null;
   custom_pdf_name: string | null;
   submitted_at: string;
+}
+
+interface AllowedMatriculaEntry {
+  matricula?: string;
+  matrícula?: string;
+  nome?: string;
+  externo?: boolean;
 }
 
 export default function AdminPage() {
@@ -33,6 +41,8 @@ export default function AdminPage() {
   const [dateRangeEnd, setDateRangeEnd] = useState('');
   const [selectedDetail, setSelectedDetail] = useState<Selection | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [expectedMatriculasCount, setExpectedMatriculasCount] = useState(0);
+  const [externalMatriculas, setExternalMatriculas] = useState<Set<string>>(new Set());
 
   // Check authentication on mount
   useEffect(() => {
@@ -53,6 +63,46 @@ export default function AdminPage() {
       setIsAuthenticated(false);
     }
   };
+
+  useEffect(() => {
+    const loadExpectedMatriculas = async () => {
+      try {
+        const response = await fetch('/data/permitidos.json', { method: 'GET' });
+
+        if (!response.ok) {
+          throw new Error('Erro ao carregar lista de permitidos');
+        }
+
+        const data = (await response.json()) as AllowedMatriculaEntry[];
+        const externalSet = new Set<string>();
+
+        const expectedCount = data.reduce((count, entry) => {
+          const matricula = String(entry.matricula ?? entry.matrícula ?? '').trim();
+          const isExternal =
+            entry.externo === true || entry.nome?.toLowerCase().trim() === 'acesso externo';
+
+          if (!matricula) {
+            return count;
+          }
+
+          if (isExternal) {
+            externalSet.add(matricula);
+            return count;
+          }
+
+          return count + 1;
+        }, 0);
+
+        setExpectedMatriculasCount(expectedCount);
+        setExternalMatriculas(externalSet);
+      } catch {
+        setExpectedMatriculasCount(0);
+        setExternalMatriculas(new Set());
+      }
+    };
+
+    loadExpectedMatriculas();
+  }, []);
 
   const fetchSelections = async () => {
     setLoadingSelections(true);
@@ -79,7 +129,8 @@ export default function AdminPage() {
     // Apply search filter
     if (searchQuery) {
       filtered = filtered.filter((s) =>
-        s.matricula.toLowerCase().includes(searchQuery.toLowerCase())
+        s.matricula.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        s.full_name.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
@@ -101,6 +152,19 @@ export default function AdminPage() {
 
     return filtered;
   }, [selections, searchQuery, selectedAreaFilter, dateRangeStart, dateRangeEnd]);
+
+  const completionRate = useMemo(() => {
+    if (expectedMatriculasCount <= 0) {
+      return '0.0';
+    }
+
+    const completedWithoutExternal = selections.filter(
+      (selection) => !externalMatriculas.has(selection.matricula)
+    ).length;
+
+    const rate = (completedWithoutExternal / expectedMatriculasCount) * 100;
+    return Math.min(rate, 100).toFixed(1);
+  }, [selections, expectedMatriculasCount, externalMatriculas]);
 
   const handleLogin = async (username: string, password: string) => {
     setIsLoading(true);
@@ -170,9 +234,10 @@ export default function AdminPage() {
     }
 
     // Prepare CSV content
-    const headers = ['Matrícula', 'Área Principal', 'Áreas de Preferência', 'PDFs Enviados', 'Data'];
+    const headers = ['Matrícula', 'Nome Completo', 'Área Principal', 'Áreas de Preferência', 'PDFs Enviados', 'Data'];
     const rows = filteredSelections.map((s) => [
       s.matricula,
+      s.full_name,
       s.mainAreaName,
       s.areaPreferenceOrder.join(', '),
       s.custom_pdf_path ? 'Sim' : 'Não',
@@ -199,6 +264,39 @@ export default function AdminPage() {
   const handleViewDetails = (selection: Selection) => {
     setSelectedDetail(selection);
     setShowDetailModal(true);
+  };
+
+  const handleDeleteSelection = async (selection: Selection) => {
+    const confirmDelete = window.confirm(
+      `Tem certeza que deseja remover a seleção de ${selection.full_name} (${selection.matricula})?`
+    );
+
+    if (!confirmDelete) {
+      return;
+    }
+
+    setError('');
+
+    try {
+      const response = await fetch(`/admin/api/selections/${selection.id}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao remover seleção');
+      }
+
+      setSelections((prev) => prev.filter((item) => item.id !== selection.id));
+
+      if (selectedDetail?.id === selection.id) {
+        setShowDetailModal(false);
+        setSelectedDetail(null);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao remover seleção');
+    }
   };
 
   // Login screen
@@ -257,7 +355,7 @@ export default function AdminPage() {
 
           <div className="bg-dark-800 p-6 rounded-lg border border-gray-600">
             <p className="text-gray-400 text-sm uppercase mb-2">Taxa de Conclusão</p>
-            <p className="text-4xl font-bold text-neon-lime">100%</p>
+            <p className="text-4xl font-bold text-neon-lime">{completionRate}%</p>
           </div>
         </motion.div>
 
@@ -307,6 +405,7 @@ export default function AdminPage() {
             isLoading={loadingSelections}
             onDownloadPdf={handleDownloadPdf}
             onViewDetails={handleViewDetails}
+            onDeleteSelection={handleDeleteSelection}
           />
         </motion.div>
       </div>

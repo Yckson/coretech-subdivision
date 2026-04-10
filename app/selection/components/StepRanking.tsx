@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   DndContext,
   closestCenter,
+  type DragEndEvent,
   KeyboardSensor,
   PointerSensor,
   useSensor,
@@ -88,16 +89,38 @@ export function StepRanking({
   );
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { distance: 8 }),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const handleDragEnd = (event: any) => {
+  // Initialize ranking if empty
+  useEffect(() => {
+    if (currentRanking.length === 0) {
+      onRankingChange(items);
+    }
+  }, []);
+
+  const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
 
-    if (active.id !== over.id) {
-      const oldIndex = items.indexOf(active.id);
-      const newIndex = items.indexOf(over.id);
+    if (!over || active.id !== over.id) {
+      if (!over) {
+        return;
+      }
+
+      const activeId = Number(active.id);
+      const overId = Number(over.id);
+
+      if (Number.isNaN(activeId) || Number.isNaN(overId)) {
+        return;
+      }
+
+      const oldIndex = items.indexOf(activeId);
+      const newIndex = items.indexOf(overId);
       const newOrder = arrayMove(items, oldIndex, newIndex);
       setItems(newOrder);
       onRankingChange(newOrder);

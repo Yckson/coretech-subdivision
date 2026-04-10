@@ -69,6 +69,18 @@ body {
 }
 
 /* Custom animations */
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
 @keyframes glow-pulse {
   0%, 100% {
     box-shadow: 0 0 20px rgba(255, 145, 77, 0.5);
@@ -119,6 +131,11 @@ body {
 }
 
 /* Utility classes */
+.animated-gradient {
+  background-size: 400% 400%;
+  animation: gradient-shift 15s ease infinite;
+}
+
 .neon-glow {
   box-shadow: 0 0 20px rgba(255, 145, 77, 0.5);
 }
@@ -133,6 +150,15 @@ body {
 
 .circuit-line {
   animation: circuit-line 2s ease-in-out;
+}
+
+/* Button cursor pointer on hover */
+button {
+  @apply cursor-pointer;
+}
+
+button:hover {
+  @apply cursor-pointer;
 }
 
 /* Focus states for accessibility */
