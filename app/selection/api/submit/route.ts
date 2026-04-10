@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
         originalFilename: pdfFile.name,
         mimetype: pdfFile.type,
         size: pdfFile.size,
-      } as any);
+      });
 
       if (!pdfValidation.valid) {
         return NextResponse.json(

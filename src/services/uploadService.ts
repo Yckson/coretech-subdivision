@@ -1,7 +1,11 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import { IncomingForm, File as FormidableFile } from 'formidable';
-import { NextRequest } from 'next/server';
+
+type UploadedPdf = {
+  originalFilename?: string | null;
+  mimetype?: string | null;
+  size: number;
+};
 
 export class UploadService {
   private uploadDir: string;
@@ -19,46 +23,7 @@ export class UploadService {
     }
   }
 
-  async processFormData(
-    req: NextRequest
-  ): Promise<{ fields: { [key: string]: string }; files: { [key: string]: FormidableFile } }> {
-    return new Promise((resolve, reject) => {
-      const form = new IncomingForm({
-        uploadDir: this.uploadDir,
-        maxFileSize: this.maxFileSize,
-        keepExtensions: true,
-        filename: (_name, _file, _origName) => {
-          return `${Date.now()}_${_origName}`;
-        },
-      });
-
-      const fields: { [key: string]: string } = {};
-      const files: { [key: string]: FormidableFile } = {};
-
-      form.on('field', (fieldname, value) => {
-        fields[fieldname] = value;
-      });
-
-      form.on('file', (fieldname, file) => {
-        files[fieldname] = file;
-      });
-
-      form.on('error', (err) => {
-        reject(err);
-      });
-
-      form.on('end', () => {
-        resolve({ fields, files });
-      });
-
-      // Convert Request to Node stream
-      const buffer = Buffer.from(req.body || '');
-      form.write(buffer);
-      form.end();
-    });
-  }
-
-  validatePDF(file: FormidableFile): { valid: boolean; error?: string } {
+  validatePDF(file: UploadedPdf | null | undefined): { valid: boolean; error?: string } {
     if (!file) {
       return { valid: true }; // PDF is optional
     }
