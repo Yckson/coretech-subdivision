@@ -50,7 +50,6 @@ function SortableAreaItem({
   return (
     <motion.div
       ref={setNodeRef}
-      style={style}
       {...attributes}
       {...listeners}
       initial={{ opacity: 0, x: -20 }}
