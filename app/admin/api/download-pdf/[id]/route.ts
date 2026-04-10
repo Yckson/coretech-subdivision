@@ -6,6 +6,19 @@ import path from 'path';
 
 const SESSION_COOKIE_NAME = 'admin_session';
 
+function toAsciiFilename(filename: string): string {
+  const normalized = filename.normalize('NFKD');
+  const asciiOnly = normalized.replace(/[^\x20-\x7E]/g, '_');
+  const safe = asciiOnly.replace(/["\\]/g, '_').trim();
+  return safe.length > 0 ? safe : 'document.pdf';
+}
+
+function buildContentDisposition(filename: string): string {
+  const fallback = toAsciiFilename(filename);
+  const utf8Name = encodeURIComponent(filename);
+  return `attachment; filename="${fallback}"; filename*=UTF-8''${utf8Name}`;
+}
+
 function getPdfCandidatePaths(storedPath: string): string[] {
   if (storedPath.startsWith('http://') || storedPath.startsWith('https://')) {
     return [storedPath];
@@ -62,7 +75,9 @@ export async function GET(
             status: 200,
             headers: {
               'Content-Type': 'application/pdf',
-              'Content-Disposition': `attachment; filename="${selection.custom_pdf_name || 'document.pdf'}"`,
+                'Content-Disposition': buildContentDisposition(
+                  selection.custom_pdf_name || 'document.pdf'
+                ),
               'Cache-Control': 'no-cache, no-store, must-revalidate',
             },
           });
@@ -79,7 +94,9 @@ export async function GET(
           status: 200,
           headers: {
             'Content-Type': 'application/pdf',
-            'Content-Disposition': `attachment; filename="${selection.custom_pdf_name || 'document.pdf'}"`,
+              'Content-Disposition': buildContentDisposition(
+                selection.custom_pdf_name || 'document.pdf'
+              ),
             'Cache-Control': 'no-cache, no-store, must-revalidate',
           },
         });
