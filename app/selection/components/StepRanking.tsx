@@ -7,7 +7,8 @@ import {
   closestCenter,
   type DragEndEvent,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
@@ -50,8 +51,6 @@ function SortableAreaItem({
   return (
     <motion.div
       ref={setNodeRef}
-      {...attributes}
-      {...listeners}
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: position * 0.1 }}
@@ -80,7 +79,15 @@ function SortableAreaItem({
           <p className="font-semibold" style={{ color: area.color }}>{area.name}</p>
           <p className="text-sm text-gray-400">{area.description}</p>
         </div>
-        <GripVertical size={20} className="text-gray-400 opacity-50" />
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          className="p-2 -m-2 rounded-md text-gray-400 opacity-70 hover:opacity-100 touch-none cursor-grab active:cursor-grabbing"
+          aria-label={`Arrastar ${area.name}`}
+        >
+          <GripVertical size={20} />
+        </button>
       </div>
     </motion.div>
   );
@@ -98,9 +105,15 @@ export function StepRanking({
   const [items, setItems] = useState<number[]>([]);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
+    useSensor(MouseSensor, {
       activationConstraint: {
         distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 150,
+        tolerance: 8,
       },
     }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
