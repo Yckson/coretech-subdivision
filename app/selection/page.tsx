@@ -106,6 +106,10 @@ function sanitizeDraft(raw: unknown): SelectionDraftPayload | null {
   };
 }
 
+function clearSelectionDraft() {
+  sessionStorage.removeItem(DRAFT_STORAGE_KEY);
+}
+
 function formatSubmissionId(memberId: unknown): string | null {
   if (memberId === null || memberId === undefined) {
     return null;
@@ -306,6 +310,7 @@ export default function SelectionPage() {
 
       if (response.status === 409) {
         // Matrícula já existe
+        clearSelectionDraft();
         window.location.href = '/selection/already-registered';
         return;
       }
@@ -320,7 +325,7 @@ export default function SelectionPage() {
         ? `/selection/success?submissionId=${encodeURIComponent(formattedSubmissionId)}`
         : '/selection/success';
 
-      sessionStorage.removeItem(DRAFT_STORAGE_KEY);
+      clearSelectionDraft();
       window.location.href = successUrl;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao submeter seleção');
@@ -537,7 +542,7 @@ export default function SelectionPage() {
               {currentStep === 3 && (
                 <StepRanking
                   mainAreaId={selectionState.mainAreaId || 0}
-                  preference={() => selectionState.areaPreferenceOrder}
+                  preference={selectionState.areaPreferenceOrder}
                   onRankingChange={(order) => updateState({ areaPreferenceOrder: order })}
                 />
               )}

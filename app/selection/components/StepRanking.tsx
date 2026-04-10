@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   DndContext,
@@ -24,7 +24,7 @@ import { AREAS } from '@/utils/constants';
 
 interface StepRankingProps {
   mainAreaId: number;
-  preference: () => number[];
+  preference: number[];
   onRankingChange: (order: number[]) => void;
 }
 
@@ -59,16 +59,26 @@ function SortableAreaItem({
       whileHover={{ scale: 1.02 }}
       className={`p-4 rounded-lg border-2 cursor-grab active:cursor-grabbing transition ${
         isDragging
-          ? 'border-primary bg-primary/20 shadow-lg shadow-primary/50'
-          : 'border-gray-600 hover:border-primary bg-dark-800'
+          ? 'shadow-lg'
+          : 'hover:bg-dark-800/80'
       }`}
+      // Each card keeps the same color identity as the main area selection cards.
+      style={{
+        ...style,
+        borderColor: isDragging ? area.color : `${area.color}99`,
+        backgroundColor: isDragging ? `${area.color}33` : `${area.color}1A`,
+        boxShadow: isDragging ? `0 0 18px ${area.color}66` : 'none',
+      }}
     >
       <div className="flex items-center gap-3">
-        <div className="flex items-center justify-center w-8 h-8 bg-primary/20 rounded-lg text-primary font-bold">
+        <div
+          className="flex items-center justify-center w-8 h-8 rounded-lg font-bold text-dark-950"
+          style={{ backgroundColor: area.color }}
+        >
           {position}
         </div>
         <div className="flex-1">
-          <p className="font-semibold text-primary">{area.name}</p>
+          <p className="font-semibold" style={{ color: area.color }}>{area.name}</p>
           <p className="text-sm text-gray-400">{area.description}</p>
         </div>
         <GripVertical size={20} className="text-gray-400 opacity-50" />
@@ -82,11 +92,11 @@ export function StepRanking({
   preference,
   onRankingChange,
 }: StepRankingProps) {
-  const remainingAreas = AREAS.filter((a) => a.id !== mainAreaId);
-  const currentRanking = preference();
-  const [items, setItems] = useState<number[]>(
-    currentRanking.length > 0 ? currentRanking : remainingAreas.map((a) => a.id)
+  const remainingAreaIds = useMemo(
+    () => AREAS.filter((a) => a.id !== mainAreaId).map((a) => a.id),
+    [mainAreaId]
   );
+  const [items, setItems] = useState<number[]>([]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -97,12 +107,28 @@ export function StepRanking({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  // Initialize ranking if empty
   useEffect(() => {
-    if (currentRanking.length === 0) {
-      onRankingChange(items);
+    const preferred = preference.filter((id) => remainingAreaIds.includes(id));
+    const dedupedPreferred = Array.from(new Set(preferred));
+    const fallback = remainingAreaIds.filter((id) => !dedupedPreferred.includes(id));
+    const nextItems = [...dedupedPreferred, ...fallback];
+
+    setItems((prev) => {
+      const isSame =
+        prev.length === nextItems.length &&
+        prev.every((id, index) => id === nextItems[index]);
+
+      return isSame ? prev : nextItems;
+    });
+
+    const isParentRankingSame =
+      preference.length === nextItems.length &&
+      preference.every((id, index) => id === nextItems[index]);
+
+    if (!isParentRankingSame) {
+      onRankingChange(nextItems);
     }
-  }, []);
+  }, [mainAreaId, preference, onRankingChange, remainingAreaIds]);
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
