@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { selectionService } from '@/services/selectionService';
 import { uploadService } from '@/services/uploadService';
-import path from 'path';
-import { promises as fs } from 'fs';
 
 export async function POST(req: NextRequest) {
   try {
@@ -80,15 +78,8 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // Save PDF
-      const uploadDir = path.join(process.cwd(), 'public', 'uploads');
-      const filename = `${Date.now()}_${pdfFile.name}`;
-      const filePath = path.join(uploadDir, filename);
-
-      const buffer = await pdfFile.arrayBuffer();
-      await fs.writeFile(filePath, Buffer.from(buffer));
-
-      pdfPath = `/uploads/${filename}`;
+      const uploaded = await uploadService.uploadPdf(pdfFile);
+      pdfPath = uploaded.url;
       pdfName = pdfFile.name;
     }
 

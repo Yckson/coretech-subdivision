@@ -7,6 +7,10 @@ import path from 'path';
 const SESSION_COOKIE_NAME = 'admin_session';
 
 function getPdfCandidatePaths(storedPath: string): string[] {
+  if (storedPath.startsWith('http://') || storedPath.startsWith('https://')) {
+    return [storedPath];
+  }
+
   const normalizedPath = storedPath.replace(/\\/g, '/').replace(/^\/+/, '');
   const candidates = new Set<string>();
 
@@ -50,6 +54,23 @@ export async function GET(
     const candidatePaths = getPdfCandidatePaths(selection.custom_pdf_path);
 
     for (const candidatePath of candidatePaths) {
+      if (candidatePath.startsWith('http://') || candidatePath.startsWith('https://')) {
+        const response = await fetch(candidatePath, { cache: 'no-store' });
+        if (response.ok) {
+          const fileBuffer = await response.arrayBuffer();
+          return new NextResponse(fileBuffer, {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/pdf',
+              'Content-Disposition': `attachment; filename="${selection.custom_pdf_name || 'document.pdf'}"`,
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+            },
+          });
+        }
+
+        continue;
+      }
+
       try {
         const fileBuffer = await fs.readFile(candidatePath);
 

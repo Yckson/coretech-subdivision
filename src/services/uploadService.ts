@@ -1,4 +1,5 @@
 import { promises as fs } from 'fs';
+import { del, put } from '@vercel/blob';
 import path from 'path';
 
 type UploadedPdf = {
@@ -8,19 +9,10 @@ type UploadedPdf = {
 };
 
 export class UploadService {
-  private uploadDir: string;
   private maxFileSize: number = 5 * 1024 * 1024; // 5MB
 
-  constructor() {
-    this.uploadDir = path.join(process.cwd(), 'public', 'uploads');
-  }
-
   async ensureUploadDir(): Promise<void> {
-    try {
-      await fs.mkdir(this.uploadDir, { recursive: true });
-    } catch (error) {
-      console.error('Error creating upload directory:', error);
-    }
+    // Kept for backward compatibility with existing route flow.
   }
 
   validatePDF(file: UploadedPdf | null | undefined): { valid: boolean; error?: string } {
@@ -50,7 +42,35 @@ export class UploadService {
     return absolutePath.replace(process.cwd(), '');
   }
 
+  async uploadPdf(file: File): Promise<{ url: string; pathname: string }> {
+    const extension = file.name.toLowerCase().endsWith('.pdf') ? '.pdf' : '';
+    const safeBaseName = file.name
+      .replace(/\.[^.]+$/, '')
+      .replace(/[^a-zA-Z0-9-_]/g, '_')
+      .slice(0, 80);
+    const blobPath = `uploads/${Date.now()}_${safeBaseName}${extension}`;
+
+    const result = await put(blobPath, file, {
+      access: 'public',
+      addRandomSuffix: true,
+    });
+
+    return {
+      url: result.url,
+      pathname: result.pathname,
+    };
+  }
+
   async deleteFile(filePath: string): Promise<void> {
+    if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+      try {
+        await del(filePath);
+        return;
+      } catch (error) {
+        console.error('Error deleting blob file:', error);
+      }
+    }
+
     const normalizedPath = filePath.replace(/\\/g, '/').replace(/^\/+/, '');
     const candidatePaths = new Set<string>([path.join(process.cwd(), normalizedPath)]);
 
