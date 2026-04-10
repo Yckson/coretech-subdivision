@@ -9,20 +9,23 @@ export class AuthService {
     this.adminPassword = process.env.ADMIN_PASSWORD || 'admin';
   }
 
-  authenticate(username: string, password: string): { success: boolean; token?: string; error?: string } {
+  async authenticate(
+    username: string,
+    password: string
+  ): Promise<{ success: boolean; token?: string; error?: string }> {
     if (username !== this.adminUsername || password !== this.adminPassword) {
       return { success: false, error: 'Credenciais inválidas' };
     }
 
-    const session = adminSessionRepository.create(username);
+    const session = await adminSessionRepository.create(username);
     return { success: true, token: session.token };
   }
 
-  validateToken(token: string): boolean {
+  async validateToken(token: string): Promise<boolean> {
     return adminSessionRepository.isValid(token);
   }
 
-  logout(token: string): boolean {
+  async logout(token: string): Promise<boolean> {
     return adminSessionRepository.deleteByToken(token);
   }
 }

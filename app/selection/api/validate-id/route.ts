@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     // External access matriculas should always remain available in the UI flow.
     const exists = selectionService.isExternalAccessMatricula(validated.matricula)
       ? false
-      : selectionService.checkMatriculaExists(validated.matricula);
+      : await selectionService.checkMatriculaExists(validated.matricula);
 
     return NextResponse.json({
       valid: true,

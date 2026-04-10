@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
     const validated = AdminLoginSchema.parse(body);
 
     // Authenticate
-    const result = authService.authenticate(validated.username, validated.password);
+    const result = await authService.authenticate(validated.username, validated.password);
 
     if (!result.success) {
       return NextResponse.json(

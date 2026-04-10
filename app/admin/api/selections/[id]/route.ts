@@ -12,7 +12,7 @@ export async function DELETE(
   try {
     const token = req.cookies.get(SESSION_COOKIE_NAME)?.value;
 
-    if (!token || !authService.validateToken(token)) {
+    if (!token || !(await authService.validateToken(token))) {
       return NextResponse.json(
         { success: false, error: 'Não autenticado' },
         { status: 401 }
@@ -29,7 +29,7 @@ export async function DELETE(
       );
     }
 
-    const selection = selectionRepository.findById(selectionId);
+    const selection = await selectionRepository.findById(selectionId);
 
     if (!selection) {
       return NextResponse.json(
@@ -38,7 +38,7 @@ export async function DELETE(
       );
     }
 
-    const deleted = selectionRepository.deleteById(selectionId);
+    const deleted = await selectionRepository.deleteById(selectionId);
 
     if (!deleted) {
       return NextResponse.json(

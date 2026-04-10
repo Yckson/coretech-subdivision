@@ -29,7 +29,7 @@ export async function GET(
     // Check authentication
     const token = req.cookies.get(SESSION_COOKIE_NAME)?.value;
 
-    if (!token || !authService.validateToken(token)) {
+    if (!token || !(await authService.validateToken(token))) {
       return NextResponse.json(
         { success: false, error: 'Não autenticado' },
         { status: 401 }
@@ -38,7 +38,7 @@ export async function GET(
 
     const { id } = await params;
     const selectionId = parseInt(id, 10);
-    const selection = selectionRepository.findAll().find((s) => s.id === selectionId);
+    const selection = (await selectionRepository.findAll()).find((s) => s.id === selectionId);
 
     if (!selection || !selection.custom_pdf_path) {
       return NextResponse.json(

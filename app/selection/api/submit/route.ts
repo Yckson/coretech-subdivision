@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if matricula already exists
-    if (selectionService.checkMatriculaExists(matricula)) {
+    if (await selectionService.checkMatriculaExists(matricula)) {
       return NextResponse.json(
         { success: false, error: 'Esta matrícula já realizou a seleção', redirectUrl: '/selection/already-registered' },
         { status: 409 }
@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Submit selection
-    const result = selectionService.submitSelection({
+    const result = await selectionService.submitSelection({
       matricula,
       fullName,
       mainAreaId,

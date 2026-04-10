@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
     // Check authentication
     const token = req.cookies.get(SESSION_COOKIE_NAME)?.value;
 
-    if (!token || !authService.validateToken(token)) {
+    if (!token || !(await authService.validateToken(token))) {
       return NextResponse.json(
         { success:false, error: 'Não autenticado' },
         { status: 401 }
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Get all selections
-    const selections = selectionRepository.findAll();
+    const selections = await selectionRepository.findAll();
 
     // Map selections with area names
     const selectionsWithNames = selections.map((selection) => ({

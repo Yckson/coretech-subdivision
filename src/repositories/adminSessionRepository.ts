@@ -1,5 +1,4 @@
 import { getDatabase } from '@/lib/db';
-import Database from 'better-sqlite3';
 import crypto from 'crypto';
 
 export interface AdminSession {
@@ -11,30 +10,40 @@ export interface AdminSession {
 }
 
 class AdminSessionRepository {
-  private db: Database.Database;
+  private mapAdminSession(row: Record<string, unknown> | undefined): AdminSession | undefined {
+    if (!row) {
+      return undefined;
+    }
 
-  constructor() {
-    this.db = getDatabase();
+    return {
+      id: Number(row.id),
+      token: String(row.token),
+      username: String(row.username),
+      expires_at: String(row.expires_at),
+      created_at: String(row.created_at),
+    };
   }
 
   generateToken(): string {
     return crypto.randomBytes(32).toString('hex');
   }
 
-  create(username: string, expiresInHours: number = 24): AdminSession {
+  async create(username: string, expiresInHours: number = 24): Promise<AdminSession> {
     const token = this.generateToken();
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + expiresInHours);
 
-    const stmt = this.db.prepare(`
+    const db = await getDatabase();
+    const result = await db.execute({
+      sql: `
       INSERT INTO admin_sessions (token, username, expires_at)
       VALUES (?, ?, ?)
-    `);
-
-    const result = stmt.run(token, username, expiresAt.toISOString());
+    `,
+      args: [token, username, expiresAt.toISOString()],
+    });
 
     return {
-      id: result.lastInsertRowid as number,
+      id: Number(result.lastInsertRowid),
       token,
       username,
       expires_at: expiresAt.toISOString(),
@@ -42,30 +51,37 @@ class AdminSessionRepository {
     };
   }
 
-  findByToken(token: string): AdminSession | undefined {
-    const stmt = this.db.prepare(`
+  async findByToken(token: string): Promise<AdminSession | undefined> {
+    const db = await getDatabase();
+    const result = await db.execute({
+      sql: `
       SELECT * FROM admin_sessions
       WHERE token = ? AND datetime(expires_at) > datetime('now')
-    `);
-    return stmt.get(token) as AdminSession | undefined;
+    `,
+      args: [token],
+    });
+    return this.mapAdminSession(result.rows[0] as Record<string, unknown> | undefined);
   }
 
-  deleteByToken(token: string): boolean {
-    const stmt = this.db.prepare('DELETE FROM admin_sessions WHERE token = ?');
-    const result = stmt.run(token);
-    return result.changes > 0;
+  async deleteByToken(token: string): Promise<boolean> {
+    const db = await getDatabase();
+    const result = await db.execute({
+      sql: 'DELETE FROM admin_sessions WHERE token = ?',
+      args: [token],
+    });
+    return result.rowsAffected > 0;
   }
 
-  deleteExpired(): number {
-    const stmt = this.db.prepare(
+  async deleteExpired(): Promise<number> {
+    const db = await getDatabase();
+    const result = await db.execute(
       `DELETE FROM admin_sessions WHERE datetime(expires_at) <= datetime('now')`
     );
-    const result = stmt.run();
-    return result.changes;
+    return result.rowsAffected;
   }
 
-  isValid(token: string): boolean {
-    return this.findByToken(token) !== undefined;
+  async isValid(token: string): Promise<boolean> {
+    return (await this.findByToken(token)) !== undefined;
   }
 }
 

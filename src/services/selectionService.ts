@@ -78,8 +78,8 @@ export class SelectionService {
     return this.externalAccessMatriculasCache?.has(matricula) ?? false;
   }
 
-  checkMatriculaExists(matricula: string): boolean {
-    const member = memberRepository.findByMatricula(matricula);
+  async checkMatriculaExists(matricula: string): Promise<boolean> {
+    const member = await memberRepository.findByMatricula(matricula);
     if (!member) {
       return false;
     }
@@ -122,7 +122,9 @@ export class SelectionService {
     return { valid: true };
   }
 
-  submitSelection(data: SelectionData): { success: boolean; memberId?: number; error?: string } {
+  async submitSelection(
+    data: SelectionData
+  ): Promise<{ success: boolean; memberId?: number; error?: string }> {
     // Validate
     const validation = this.validateSelection(data);
     if (!validation.valid) {
@@ -134,19 +136,19 @@ export class SelectionService {
     }
 
     // Check if matricula already exists
-    let member = memberRepository.findByMatricula(data.matricula);
-    if (member && selectionRepository.findByMemberId(member.id)) {
+    let member = await memberRepository.findByMatricula(data.matricula);
+    if (member && (await selectionRepository.findByMemberId(member.id))) {
       return { success: false, error: 'Esta matrícula já realizou a seleção' };
     }
 
     // Create or get member
     if (!member) {
-      member = memberRepository.create(data.matricula, data.fullName.trim());
+      member = await memberRepository.create(data.matricula, data.fullName.trim());
     }
 
     // Create selection
     try {
-      selectionRepository.create(
+      await selectionRepository.create(
         member.id,
         data.mainAreaId,
         data.areaPreferenceOrder,
@@ -161,7 +163,7 @@ export class SelectionService {
     }
   }
 
-  getSelection(memberId: number) {
+  async getSelection(memberId: number) {
     return selectionRepository.findByMemberIdWithMatricula(memberId);
   }
 
