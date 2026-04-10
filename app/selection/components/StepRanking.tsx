@@ -83,7 +83,7 @@ function SortableAreaItem({
           type="button"
           {...attributes}
           {...listeners}
-          className="p-2 -m-2 rounded-md text-gray-400 opacity-70 hover:opacity-100 touch-none cursor-grab active:cursor-grabbing"
+          className="w-11 h-11 sm:w-9 sm:h-9 -m-1 sm:-m-0.5 rounded-md inline-flex items-center justify-center text-gray-400 opacity-70 hover:opacity-100 touch-none cursor-grab active:cursor-grabbing"
           aria-label={`Arrastar ${area.name}`}
         >
           <GripVertical size={20} />
