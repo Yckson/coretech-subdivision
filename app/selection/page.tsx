@@ -273,6 +273,53 @@ export default function SelectionPage() {
     updateState({ fullName });
   }, [updateState]);
 
+  const handleMainAreaSelect = useCallback((areaId: number) => {
+    setSelectionState((prev) => {
+      if (prev.mainAreaId === areaId) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        mainAreaId: areaId,
+        areaPreferenceOrder: [],
+        articlesSelected: {},
+        customPdf: null,
+      };
+    });
+    setError('');
+  }, []);
+
+  const handleRankingChange = useCallback((order: number[]) => {
+    setSelectionState((prev) => {
+      const eligibleAreaIds = new Set<number>();
+
+      if (prev.mainAreaId) {
+        eligibleAreaIds.add(prev.mainAreaId);
+      }
+
+      const secondAreaId = order[0];
+      if (typeof secondAreaId === 'number') {
+        eligibleAreaIds.add(secondAreaId);
+      }
+
+      const filteredArticles = Object.entries(prev.articlesSelected).reduce<Record<number, string>>((acc, [areaId, article]) => {
+        const numericAreaId = Number(areaId);
+        if (eligibleAreaIds.has(numericAreaId)) {
+          acc[numericAreaId] = article;
+        }
+        return acc;
+      }, {});
+
+      return {
+        ...prev,
+        areaPreferenceOrder: order,
+        articlesSelected: filteredArticles,
+      };
+    });
+    setError('');
+  }, []);
+
   const handleMatriculaExistsChange = useCallback((exists: boolean) => {
     setMatriculaExists(exists);
   }, []);
@@ -535,7 +582,7 @@ export default function SelectionPage() {
               {currentStep === 2 && (
                 <StepMainArea
                   selectedAreaId={selectionState.mainAreaId}
-                  onSelectArea={(areaId) => updateState({ mainAreaId: areaId })}
+                  onSelectArea={handleMainAreaSelect}
                 />
               )}
 
@@ -543,7 +590,7 @@ export default function SelectionPage() {
                 <StepRanking
                   mainAreaId={selectionState.mainAreaId || 0}
                   preference={selectionState.areaPreferenceOrder}
-                  onRankingChange={(order) => updateState({ areaPreferenceOrder: order })}
+                  onRankingChange={handleRankingChange}
                 />
               )}
 

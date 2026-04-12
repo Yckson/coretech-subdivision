@@ -113,8 +113,36 @@ export class SelectionService {
       return areaValid;
     }
 
+    const selectedArticles = data.articlesSelected || {};
+    const mainAreaId = data.mainAreaId || 0;
+    const secondAreaId = data.areaPreferenceOrder?.[0];
+    const eligibleArticleAreas = [mainAreaId, secondAreaId].filter(
+      (areaId): areaId is number => typeof areaId === 'number' && areaIds.includes(areaId)
+    );
+
+    const articleAreaIds = Object.keys(selectedArticles)
+      .map((areaId) => Number(areaId))
+      .filter((areaId) => Number.isInteger(areaId));
+
+    if (articleAreaIds.some((areaId) => !eligibleArticleAreas.includes(areaId))) {
+      return {
+        valid: false,
+        error: 'A seleção de artigos deve considerar apenas a 1ª e 2ª áreas de preferência',
+      };
+    }
+
+    if (
+      eligibleArticleAreas.length === 2 &&
+      !eligibleArticleAreas.every((areaId) => articleAreaIds.includes(areaId))
+    ) {
+      return {
+        valid: false,
+        error: 'Selecione um artigo para a 1ª e 2ª áreas de preferência',
+      };
+    }
+
     // Validate articles
-    const articleValid = validateArticleSelection(data.articlesSelected || {}, ARTICLES_BY_AREA);
+    const articleValid = validateArticleSelection(selectedArticles, ARTICLES_BY_AREA);
     if (!articleValid.valid) {
       return articleValid;
     }
@@ -125,6 +153,8 @@ export class SelectionService {
   async submitSelection(
     data: SelectionData
   ): Promise<{ success: boolean; memberId?: number; error?: string }> {
+    const normalizedFullName = data.fullName.trim();
+
     // Validate
     const validation = this.validateSelection(data);
     if (!validation.valid) {
@@ -143,7 +173,9 @@ export class SelectionService {
 
     // Create or get member
     if (!member) {
-      member = await memberRepository.create(data.matricula, data.fullName.trim());
+      member = await memberRepository.create(data.matricula, normalizedFullName);
+    } else if (member.full_name !== normalizedFullName) {
+      await memberRepository.updateFullName(member.id, normalizedFullName);
     }
 
     // Create selection

@@ -54,6 +54,16 @@ class MemberRepository {
     };
   }
 
+  async updateFullName(id: number, fullName: string): Promise<boolean> {
+    const db = await getDatabase();
+    const result = await db.execute({
+      sql: 'UPDATE members SET full_name = ? WHERE id = ?',
+      args: [fullName, id],
+    });
+
+    return result.rowsAffected > 0;
+  }
+
   async getAll(): Promise<Member[]> {
     const db = await getDatabase();
     const result = await db.execute('SELECT * FROM members ORDER BY created_at DESC');
